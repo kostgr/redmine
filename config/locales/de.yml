@@ -320,6 +320,7 @@ de:
   field_identifier: Kennung
   field_identity_url: OpenID-URL
   field_inherit_members: Benutzer erben
+  field_inherit_categs: Kategorien erben
   field_is_closed: Ticket geschlossen
   field_is_default: Standardeinstellung
   field_is_filter: Als Filter benutzen
