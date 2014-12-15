@@ -124,7 +124,7 @@ class Changeset < ActiveRecord::Base
 
     referenced_issues = []
 
-    comments.scan(/([\s\(\[,-]|^)((#{kw_regexp})[\s:]+)?(#\d+(\s+@#{TIMELOG_RE})?([\s,;&]+#\d+(\s+@#{TIMELOG_RE})?)*)(?=[[:punct:]]|\s|<|$)/i) do |match|
+    comments.scan(/([\s\(\[,-]|^)((#{kw_regexp})[\s:]+)?(m?#\d+(\s+@#{TIMELOG_RE})?([\s,;&]+m?#\d+(\s+@#{TIMELOG_RE})?)*)(?=[[:punct:]]|\s|<|$)/i) do |match|
       action, refs = match[2].to_s.downcase, match[3]
       next unless action.present? || ref_keywords_any
 
