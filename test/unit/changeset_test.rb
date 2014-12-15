@@ -109,6 +109,43 @@ class ChangesetTest < ActiveSupport::TestCase
     end
   end
 
+  def test_merged_comment_no_timelogging_made
+    Setting.commit_ref_keywords = '*'
+    Setting.commit_logtime_enabled = '1'
+
+    {
+      %q(Merged revision(s) 18-19 from trunk/std/docs/templates:
+Issue #1 @1h30m: another change
+........
+Issue #2 @2h60m: another change
+........
+) => [1, 2],
+      %q(Merged revision(s) 31401, 31406-31470, 31531, 31622-31644, 31658, 31674, 31755 from branches/development/r5.0q4:
+common InnoBaseFormSearch/InfoSuchopertratoren:
+    Issue #1 @1h30m: Hilfe kann nun immer korrekt aufgerufen werden
+    Issue #2 @2h20m: folge Fehler wurde durch 0004481 mitbehoben
+........
+common.FormSearchHotlinerUnit.pas
+    Issue #3 @3h20m: Suche PArameter werden nicht mehr zurückgesetzt, wenn "fixiert" markiert.
+........
+PMS.PMSInfoVorgangFrame
+    Issue #8 @2h: Änderungsdatum zum Grid hinzugefügt, Einzelene Spalten umbenannt (Anlage und Änderung Datum, Termin(Deadline)), Query ebenfalls angepasst damit Ändeunrgsdatum angezeigt wird.
+........
+) => [1, 2, 3, 8]
+    }.each do |comment, issue_ids|
+      c = Changeset.new(:repository   => Project.find(1).repository,
+                        :committed_on => 24.hours.ago,
+                        :comments     => comment,
+                        :user         => User.find(2))
+      assert_no_difference 'TimeEntry.count' do 
+        c.scan_comment_for_issue_ids
+      end
+
+      assert_equal issue_ids, c.issue_ids.sort
+    end
+  end
+
+
   def test_ref_keywords_closing_with_timelog
     Setting.commit_ref_keywords = '*'
     Setting.commit_update_keywords = [{'keywords' => 'fixes , closes',

@@ -124,6 +124,11 @@ class Changeset < ActiveRecord::Base
 
     referenced_issues = []
 
+    logtime_enabled = Setting.commit_logtime_enabled?
+    if /Merged revision\(s\) \d+(-\d+|, \d+)* from [^:\/]+(\/[^:\/]+)*:\n.*\.{8}/im.match(comments)
+      logtime_enabled = false
+    end
+
     comments.scan(/([\s\(\[,-]|^)((#{kw_regexp})[\s:]+)?(m?#\d+(\s+@#{TIMELOG_RE})?([\s,;&]+m?#\d+(\s+@#{TIMELOG_RE})?)*)(?=[[:punct:]]|\s|<|$)/i) do |match|
       action, refs = match[2].to_s.downcase, match[3]
       next unless action.present? || ref_keywords_any
@@ -135,7 +140,7 @@ class Changeset < ActiveRecord::Base
           # Don't update issues or log time when importing old commits
           unless repository.created_on && committed_on && committed_on < repository.created_on
             fix_issue(issue, action) if fix_keywords.include?(action)
-            log_time(issue, hours) if hours && Setting.commit_logtime_enabled?
+            log_time(issue, hours) if hours && logtime_enabled
           end
         end
       end
