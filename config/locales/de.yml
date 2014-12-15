@@ -279,7 +279,7 @@ de:
   field_assigned_to_role: Zuständigkeitsrolle
   field_attr_firstname: Vorname-Attribut
   field_attr_lastname: Name-Attribut
-  field_attr_login: Mitgliedsname-Attribut
+  field_attr_login: Benutzer-Attribut
   field_attr_mail: E-Mail-Attribut
   field_auth_source: Authentifizierungs-Modus
   field_auth_source_ldap_filter: LDAP-Filter
@@ -335,7 +335,7 @@ de:
   field_language: Sprache
   field_last_login_on: Letzte Anmeldung
   field_lastname: Nachname
-  field_login: Mitgliedsname
+  field_login: Login
   field_mail: E-Mail
   field_mail_notification: Mailbenachrichtigung
   field_max_length: Maximale Länge
