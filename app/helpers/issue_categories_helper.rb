@@ -18,4 +18,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 module IssueCategoriesHelper
+  def options_for_reassign(categ, categs, proj)
+    projs = proj.inherited_projects
+    cats = categs.sort { |a, b| 
+	  (a.project_id == b.project_id) ? (a.name <=> b.name) : (a.project.rgt <=> b.project.rgt)
+	}
+    return options_for_select(cats.map { |cat|
+	  ["#{cat.name} (#{format_project cat.project, projs})", cat.id]
+	})
+  end
+
 end

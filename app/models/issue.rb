@@ -314,7 +314,8 @@ class Issue < ActiveRecord::Base
       end
       # Reassign to the category with same name if any
       if category
-        self.category = project.issue_categories.find_by_name(category.name)
+        self.category = project.inherited_categories.detect { |cat|
+			cat.name == category.name }
       end
       # Keep the fixed_version if it's still valid in the new_project
       if fixed_version && fixed_version.project != project && !project.shared_versions.include?(fixed_version)

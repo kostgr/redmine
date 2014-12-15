@@ -334,6 +334,7 @@ fr:
   field_timeout: "Timeout (en secondes)"
   field_board_parent: Forum parent
   field_private_notes: Notes privées
+  field_inherit_categs: Hérite des catégories du projet parent
   field_inherit_members: Hériter les membres
   field_generate_password: Générer un mot de passe
   field_must_change_passwd: Doit changer de mot de passe à la prochaine connexion
@@ -1016,6 +1017,8 @@ fr:
   text_account_destroy_confirmation: "Êtes-vous sûr de vouloir continuer ?\nVotre compte sera définitivement supprimé, sans aucune possibilité de le réactiver."
   text_session_expiration_settings: "Attention : le changement de ces paramètres peut entrainer l'expiration des sessions utilisateurs en cours, y compris la vôtre."
   text_project_closed: Ce projet est fermé et accessible en lecture seule.
+  text_issue_categories_inherited: "Catégories des projets hérités"
+  text_issue_category_masked: "cette catégorie est masquée par une autre de même nom à un niveau plus bas"
   text_turning_multiple_off: "Si vous désactivez les valeurs multiples, les valeurs multiples seront supprimées pour n'en conserver qu'une par objet."
 
   default_role_manager: Manager

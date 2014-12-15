@@ -368,7 +368,7 @@ class MailHandler < ActionMailer::Base
       'tracker_id' => (k = get_keyword(:tracker)) && issue.project.trackers.named(k).first.try(:id),
       'status_id' =>  (k = get_keyword(:status)) && IssueStatus.named(k).first.try(:id),
       'priority_id' => (k = get_keyword(:priority)) && IssuePriority.named(k).first.try(:id),
-      'category_id' => (k = get_keyword(:category)) && issue.project.issue_categories.named(k).first.try(:id),
+      'category_id' => (k = get_keyword(:category)) && issue.project.inherited_categories.reject { |cat| cat.name.casecmp(k) != 0 }.first.try(:id),
       'assigned_to_id' => assigned_to.try(:id),
       'fixed_version_id' => (k = get_keyword(:fixed_version, :override => true)) &&
                                 issue.project.shared_versions.named(k).first.try(:id),

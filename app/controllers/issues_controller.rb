@@ -241,7 +241,7 @@ class IssuesController < ApplicationController
     @assignables = target_projects.map(&:assignable_users).reduce(:&)
     @trackers = target_projects.map(&:trackers).reduce(:&)
     @versions = target_projects.map {|p| p.shared_versions.open}.reduce(:&)
-    @categories = target_projects.map {|p| p.issue_categories}.reduce(:&)
+    @categories = target_projects.map {|p| p.inherited_categories}.reduce(:&)
     if @copy
       @attachments_present = @issues.detect {|i| i.attachments.any?}.present?
       @subtasks_present = @issues.detect {|i| !i.leaf?}.present?

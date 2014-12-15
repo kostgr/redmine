@@ -133,6 +133,34 @@ class Project < ActiveRecord::Base
     end
   end
 
+  # walks ancestors up to the first that doesn't inherit from his parent
+  def inherited_projects
+  	l = [self]
+	self_and_ancestors.reverse.each { |p| 
+	  if p.inherit_categs and ! p.parent.nil?
+		l << p.parent
+	  else
+		break
+	  end
+	}
+	return l
+  end
+
+  # get inherited categories (all = false) or all categories from inherited
+  # projects if all is true
+  def inherited_categories(all = false)
+	categs = IssueCategory.find(:all ,
+						  :joins => :project,
+						  :conditions => { :project_id => inherited_projects },
+						  :order => "name, #{Project.table_name}.rgt")
+	old = nil
+	# a category from a deep project masks categories of same name from others
+	return all ? categs : categs.reject { |c| cr = (c.name == old)
+	  old = c.name
+	  cr 
+	}
+  end
+
   def identifier=(identifier)
     super unless identifier_frozen?
   end
@@ -371,7 +399,7 @@ class Project < ActiveRecord::Base
   end
 
   # Sets the parent of the project with authorization check
-  def set_allowed_parent!(p)
+  def set_allowed_parent!(p, i = nil)
     unless p.nil? || p.is_a?(Project)
       if p.to_s.blank?
         p = nil
@@ -387,12 +415,13 @@ class Project < ActiveRecord::Base
     elsif !allowed_parents.include?(p)
       return false
     end
-    set_parent!(p)
+    set_parent!(p, i)
   end
 
   # Sets the parent of the project
   # Argument can be either a Project, a String, a Fixnum or nil
-  def set_parent!(p)
+  def set_parent!(p, i = nil)
+    i = self.inherit_categs if i.nil?
     unless p.nil? || p.is_a?(Project)
       if p.to_s.blank?
         p = nil
@@ -401,10 +430,17 @@ class Project < ActiveRecord::Base
         return false unless p
       end
     end
+	i = false if p.nil?
     if p == parent && !p.nil?
+	  adjust_inheritance((self.inherit_categs ? self.parent : nil), i ? p : nil)
+	  Project.update(self.id, :inherit_categs => i) unless (i == self.inherit_categs)
+	  self.inherit_categs = i
       # Nothing to do
       true
     elsif p.nil? || (p.active? && move_possible?(p))
+	  adjust_inheritance((self.inherit_categs ? self.parent : nil), i ? p : nil)
+	  Project.update(self.id, :inherit_categs => i) unless (i == self.inherit_categs)
+	  self.inherit_categs = i
       set_or_update_position_under(p)
       Issue.update_versions_from_hierarchy_change(self)
       true
@@ -1049,5 +1085,33 @@ class Project < ActiveRecord::Base
     if parent_was != target_parent
       after_parent_changed(parent_was)
     end
+  end
+
+  # adjusts inherited issue categories when inherit_categs is set to false or
+  #  when parent is changed - new and old are direct inherited projects
+  #  they are nil if inherit_categs is false
+  # For each lost category, a categorie of same name is created in current
+  #  project, and issues are reaffected
+  def adjust_inheritance(old, new)
+  	if (inherit_categs && new.nil?) then
+	  self.inherit_categs = false
+	  Project.update(id, {:inherit_categs => false})
+	end
+    return if old.nil?
+	lost_categories = old.inherited_categories
+	lost_categories -= new.inherited_categories if ! new.nil?
+	subprojs = self_and_descendants
+	Issue.transaction do
+		lost_categories.each { |cat|
+		  if ! Issue.find(:all,
+						:joins => :project,
+						:conditions => [ "category_id = ? and #{Project.table_name}.lft > ? and #{Project.table_name}.rgt < ?", cat.id, self.lft, self.rgt]
+		  ).empty? then
+			newcat=IssueCategory.create!(:name => cat.name, :project_id => self.id)
+			n = Issue.update_all({:category_id => newcat.id},
+						 { :category_id => cat, :project_id => subprojs})
+		  end
+		}
+	end
   end
 end

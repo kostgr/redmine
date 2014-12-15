@@ -79,6 +79,7 @@ class ProjectsController < ApplicationController
     @trackers = Tracker.sorted.all
     @project = Project.new
     @project.safe_attributes = params[:project]
+    @project.inherit_categs = true if params[:project][:inherit_categs]
 
     if validate_parent_id && @project.save
       @project.set_allowed_parent!(params[:project]['parent_id']) if params[:project].has_key?('parent_id')
@@ -180,7 +181,15 @@ class ProjectsController < ApplicationController
   def update
     @project.safe_attributes = params[:project]
     if validate_parent_id && @project.save
-      @project.set_allowed_parent!(params[:project]['parent_id']) if params[:project].has_key?('parent_id')
+	  new_inherit_categs = params[:project].has_key?('inherit_categs') ? \
+	      params[:project]['inherit_categs'] : nil
+	  if new_inherit_categs == "1" then new_inherit_categs = true
+	  elsif new_inherit_categs == "0" then new_inherit_categs = false
+	  end
+	  new_parent = params[:project].has_key?('parent_id') ? params[:project]['parent_id'] : @project.parent
+      @project.set_allowed_parent!(new_parent, new_inherit_categs) \
+        if (params[:project].has_key?('parent_id') \
+          || params[:project].has_key?('inherit_categs'))
       respond_to do |format|
         format.html {
           flash[:notice] = l(:notice_successful_update)

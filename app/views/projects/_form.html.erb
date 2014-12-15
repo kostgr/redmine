@@ -14,6 +14,7 @@
 
 <% unless @project.allowed_parents.compact.empty? %>
     <p><%= label(:project, :parent_id, l(:field_parent)) %><%= parent_project_select_tag(@project) %></p>
+	<p><%= f.check_box :inherit_categs %></p>
 <% end %>
 
 <% if @project.safe_attribute? 'inherit_members' %>

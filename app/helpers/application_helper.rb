@@ -1347,4 +1347,14 @@ module ApplicationHelper
   def link_to_content_update(text, url_params = {}, html_options = {})
     link_to(text, url_params, html_options)
   end
+
+  def format_project(proj, list)
+    resul = ''
+	list.reverse.each { |p|
+	  break if p == proj
+	  resul += "#{p.name} » "
+	}
+	resul += proj.name
+  end
+
 end

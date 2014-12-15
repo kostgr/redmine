@@ -95,7 +95,7 @@ class IssueCategoriesController < ApplicationController
     if @issue_count == 0 || params[:todo] || api_request?
       reassign_to = nil
       if params[:reassign_to_id] && (params[:todo] == 'reassign' || params[:todo].blank?)
-        reassign_to = @project.issue_categories.find_by_id(params[:reassign_to_id])
+        reassign_to = IssueCategory.find_by_id(params[:reassign_to_id])
       end
       @category.destroy(reassign_to)
       respond_to do |format|
@@ -104,7 +104,16 @@ class IssueCategoriesController < ApplicationController
       end
       return
     end
-    @categories = @project.issue_categories - [@category]
+	old = nil
+    @categories = @project.inherited_categories(true).reject { |cat|
+	  if cat.id == @category.id then
+	    true
+	  else
+	    cr = (old == cat.name)
+		old = cat.name
+		cr
+	  end
+	}
   end
 
   private

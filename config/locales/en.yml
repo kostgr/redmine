@@ -334,6 +334,7 @@ en:
   field_timeout: "Timeout (in seconds)"
   field_board_parent: Parent forum
   field_private_notes: Private notes
+  field_inherit_categs: Inherits categories from parent
   field_inherit_members: Inherit members
   field_generate_password: Generate password
   field_must_change_passwd: Must change password at next logon
@@ -1059,6 +1060,8 @@ en:
   text_account_destroy_confirmation: "Are you sure you want to proceed?\nYour account will be permanently deleted, with no way to reactivate it."
   text_session_expiration_settings: "Warning: changing these settings may expire the current sessions including yours."
   text_project_closed: This project is closed and read-only.
+  text_issue_categories_inherited: "Categories from inherited projects"
+  text_issue_category_masked: "category is masked by one with same name in a deeper project"
   text_turning_multiple_off: "If you disable multiple values, multiple values will be removed in order to preserve only one value per item."
 
   default_role_manager: Manager
