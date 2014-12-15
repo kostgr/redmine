@@ -27,27 +27,31 @@ task :migrate_from_mantis => :environment do
   module MantisMigrate
 
       DEFAULT_STATUS = IssueStatus.default
-      assigned_status = IssueStatus.find_by_position(2)
-      resolved_status = IssueStatus.find_by_position(3)
-      feedback_status = IssueStatus.find_by_position(4)
-      closed_status = IssueStatus.where(:is_closed => true).first
+      reopened_status = IssueStatus.find_by_position(2)
+      confirmed_status = IssueStatus.find_by_position(3)
+      assigned_status = IssueStatus.find_by_position(4)
+      editing_status = IssueStatus.find_by_position(5)
+      testing_status = IssueStatus.find_by_position(7)
+      resolved_status = IssueStatus.find_by_position(8)
+      closed_status = IssueStatus.find_by_position(9)
       STATUS_MAPPING = {10 => DEFAULT_STATUS,  # new
-                        20 => feedback_status, # feedback
-                        30 => DEFAULT_STATUS,  # acknowledged
-                        40 => DEFAULT_STATUS,  # confirmed
+                        20 => reopened_status, # reopened
+                        30 => confirmed_status, # acknowledged
+                        40 => confirmed_status, # confirmed
                         50 => assigned_status, # assigned
+                        60 => editing_status,  # in progress
                         80 => resolved_status, # resolved
                         90 => closed_status    # closed
                         }
 
       priorities = IssuePriority.all
-      DEFAULT_PRIORITY = priorities[2]
-      PRIORITY_MAPPING = {10 => priorities[1], # none
-                          20 => priorities[1], # low
-                          30 => priorities[2], # normal
-                          40 => priorities[3], # high
-                          50 => priorities[4], # urgent
-                          60 => priorities[5]  # immediate
+      DEFAULT_PRIORITY = priorities[1]
+      PRIORITY_MAPPING = {10 => priorities[0], # none
+                          20 => priorities[0], # low
+                          30 => priorities[1], # normal
+                          40 => priorities[2], # high
+                          50 => priorities[3], # urgent
+                          60 => priorities[4]  # immediate
                           }
 
       TRACKER_BUG = Tracker.find_by_position(1)
@@ -119,8 +123,12 @@ task :migrate_from_mantis => :environment do
       has_many :members, :class_name => "MantisProjectUser", :foreign_key => :project_id
 
       def identifier
-        read_attribute(:name).downcase.gsub(/[^a-z0-9\-]+/, '-').slice(0, Project::IDENTIFIER_MAX_LENGTH)
+        read_attribute(:name).slice(0, Project::IDENTIFIER_MAX_LENGTH).downcase.gsub(/[^a-z0-9\-]+/, '-')
       end
+    end
+
+    class MantisProjectHierarchy < ActiveRecord::Base
+        self.table_name = :mantis_project_hierarchy_table
     end
 
     class MantisVersion < ActiveRecord::Base
@@ -136,7 +144,10 @@ task :migrate_from_mantis => :environment do
     end
 
     class MantisCategory < ActiveRecord::Base
-      self.table_name = :mantis_project_category_table
+      self.table_name = :mantis_category_table
+      def category
+        read_attribute(:name).slice(0,70)
+      end
     end
 
     class MantisProjectUser < ActiveRecord::Base
@@ -146,6 +157,7 @@ task :migrate_from_mantis => :environment do
     class MantisBug < ActiveRecord::Base
       self.table_name = :mantis_bug_table
       belongs_to :bug_text, :class_name => "MantisBugText", :foreign_key => :bug_text_id
+      belongs_to :category, :class_name => "MantisCategory", :foreign_key => :category_id
       has_many :bug_notes, :class_name => "MantisBugNote", :foreign_key => :bug_id
       has_many :bug_files, :class_name => "MantisBugFile", :foreign_key => :bug_id
       has_many :bug_monitors, :class_name => "MantisBugMonitor", :foreign_key => :bug_id
@@ -213,7 +225,7 @@ task :migrate_from_mantis => :environment do
 
     class MantisCustomField < ActiveRecord::Base
       self.table_name = :mantis_custom_field_table
-      set_inheritance_column :none
+      self.inheritance_column = :none
       has_many :values, :class_name => "MantisCustomFieldString", :foreign_key => :field_id
       has_many :projects, :class_name => "MantisCustomFieldProject", :foreign_key => :field_id
 
@@ -245,7 +257,7 @@ task :migrate_from_mantis => :environment do
         u = User.new :firstname => encode(user.firstname),
                      :lastname => encode(user.lastname),
                      :mail => user.email,
-                     :last_login_on => user.last_visit
+                     :last_login_on => (user.last_visit ? Time.at(user.last_visit) : nil)
         u.login = user.username
         u.password = 'mantis'
         u.status = User::STATUS_LOCKED if user.enabled != 1
@@ -262,14 +274,18 @@ task :migrate_from_mantis => :environment do
       Project.destroy_all
       projects_map = {}
       versions_map = {}
+      versions_locked = []
       categories_map = {}
+      inheritable_categories = false
       MantisProject.all.each do |project|
         p = Project.new :name => encode(project.name),
                         :description => encode(project.description)
+        inheritable_categories = p.has_attribute?("inherit_categs") unless inheritable_categories
         p.identifier = project.identifier
+        p.is_public = (project.view_state == 10)
         next unless p.save
         projects_map[project.id] = p.id
-        p.enabled_module_names = ['issue_tracking', 'news', 'wiki']
+        p.enabled_module_names = ['issue_tracking', 'news', 'calendar', 'gantt', 'time_tracking']
         p.trackers << TRACKER_BUG unless p.trackers.include?(TRACKER_BUG)
         p.trackers << TRACKER_FEATURE unless p.trackers.include?(TRACKER_FEATURE)
         print '.'
@@ -286,15 +302,19 @@ task :migrate_from_mantis => :environment do
         project.versions.each do |version|
           v = Version.new :name => encode(version.version),
                           :description => encode(version.description),
-                          :effective_date => (version.date_order ? version.date_order.to_date : nil)
+                          :effective_date => (version.date_order ? Time.at(version.date_order).to_date : nil)
           v.project = p
+          # we cannot directly lock versions, cause otherwise some bugs will not be migrated, that why we remember the versions to be locked after issues migration
+          if version.obsolete == 1
+            versions_locked << v
+          end
           v.save
           versions_map[version.id] = v.id
         end
 
         # Project categories
         project.categories.each do |category|
-          g = IssueCategory.new :name => category.category[0,30]
+          g = IssueCategory.new :name => category.category
           g.project = p
           g.save
           categories_map[category.category] = g.id
@@ -302,26 +322,77 @@ task :migrate_from_mantis => :environment do
       end
       puts
 
+      # Project Hierarchy
+      print "Making Project Hierarchy"
+      MantisProjectHierarchy.find(:all).each do |link|
+        next unless p = Project.find_by_id(projects_map[link.child_id])
+        p.set_parent!(projects_map[link.parent_id])
+        if link.inherit_parent == 1
+          if inheritable_categories
+            p.inherit_categs = 1
+          end
+          # Turn on the users inheritance
+          p.inherit_members = 1
+          p.save
+          # Turn on the versions inheritance
+          parent_project = Project.find_by_id(projects_map[link.parent_id])
+          parent_project.versions.each do |version|
+            version.sharing = 'descendants'
+            version.save
+          end
+        end
+        print '.'
+      end
+      puts
+
       # Bugs
       print "Migrating bugs"
+      ActiveRecord::Base.record_timestamps = false
       Issue.destroy_all
       issues_map = {}
       keep_bug_ids = (Issue.count == 0)
       MantisBug.find_each(:batch_size => 200) do |bug|
-        next unless projects_map[bug.project_id] && users_map[bug.reporter_id]
+        if !(projects_map[bug.project_id] && users_map[bug.reporter_id])
+          puts "<#{bug.id} proj/user er>"
+          next
+        end
         i = Issue.new :project_id => projects_map[bug.project_id],
                       :subject => encode(bug.summary),
                       :description => encode(bug.bug_text.full_description),
                       :priority => PRIORITY_MAPPING[bug.priority] || DEFAULT_PRIORITY,
-                      :created_on => bug.date_submitted,
-                      :updated_on => bug.last_updated
+                      :created_on => (bug.date_submitted ? Time.at(bug.date_submitted) : nil),
+                      :updated_on => (bug.last_updated ? Time.at(bug.last_updated) : nil)
         i.author = User.find_by_id(users_map[bug.reporter_id])
-        i.category = IssueCategory.find_by_project_id_and_name(i.project_id, bug.category[0,30]) unless bug.category.blank?
-        i.fixed_version = Version.find_by_project_id_and_name(i.project_id, bug.fixed_in_version) unless bug.fixed_in_version.blank?
+        i.category = IssueCategory.find_by_project_id_and_name(i.project_id, bug.category.category) unless bug.category.blank?
+        if (i.category.nil?) && inheritable_categories
+          p = Project.find_by_id(projects_map[bug.project_id])
+          i.category = p.inherited_categories.find{|c| c.name == bug.category.category}
+        end
+        if !(bug.fixed_in_version.blank? && bug.target_version.blank?)
+          p = Project.find_by_id(projects_map[bug.project_id])
+          if !bug.fixed_in_version.blank?
+            vv = bug.fixed_in_version
+          else
+            vv = bug.target_version
+          end
+          i.fixed_version = p.shared_versions.find{|v| v.name == vv}
+        end
         i.status = STATUS_MAPPING[bug.status] || DEFAULT_STATUS
         i.tracker = (bug.severity == 10 ? TRACKER_FEATURE : TRACKER_BUG)
+        i.start_date = Time.at(bug.date_submitted).to_date
+        if bug.due_date > bug.date_submitted
+          i.due_date = Time.at(bug.due_date).to_date
+        elsif bug.status >= 80 && bug.last_updated > bug.date_submitted
+          i.due_date = Time.at(bug.last_updated).to_date
+        end
         i.id = bug.id if keep_bug_ids
-        next unless i.save
+        if !i.save
+          puts "<#{bug.id} save er>"
+          puts i.errors.full_messages.join(', ')
+          STDIN.gets.chomp!
+          next
+        end
+        # next unless i.save
         issues_map[bug.id] = i.id
         print '.'
         STDOUT.flush
@@ -337,7 +408,7 @@ task :migrate_from_mantis => :environment do
         bug.bug_notes.each do |note|
           next unless users_map[note.reporter_id]
           n = Journal.new :notes => encode(note.bug_note_text.note),
-                          :created_on => note.date_submitted
+                          :created_on => Time.at(note.date_submitted)
           n.user = User.find_by_id(users_map[note.reporter_id])
           n.journalized = i
           n.save
@@ -345,7 +416,7 @@ task :migrate_from_mantis => :environment do
 
         # Bug files
         bug.bug_files.each do |file|
-          a = Attachment.new :created_on => file.date_added
+          a = Attachment.new :created_on => (file.date_added ? Time.at(file.date_added) : nil)
           a.file = file
           a.author = User.first
           a.container = i
@@ -359,11 +430,18 @@ task :migrate_from_mantis => :environment do
         end
       end
 
+      # Locking versions after all bugs where migrated, otherwise no bugs with the locked version as target will be migrated
+      versions_locked.each do |version|
+        version.status = 'locked'
+        version.save
+      end
+
       # update issue id sequence if needed (postgresql)
       Issue.connection.reset_pk_sequence!(Issue.table_name) if Issue.connection.respond_to?('reset_pk_sequence!')
       puts
 
       # Bug relationships
+      ActiveRecord::Base.record_timestamps = true
       print "Migrating bug relations"
       MantisBugRelationship.all.each do |relation|
         next unless issues_map[relation.source_bug_id] && issues_map[relation.destination_bug_id]
@@ -384,7 +462,7 @@ task :migrate_from_mantis => :environment do
         n = News.new :project_id => projects_map[news.project_id],
                      :title => encode(news.headline[0..59]),
                      :description => encode(news.body),
-                     :created_on => news.date_posted
+                     :created_on => Time.at(news.date_posted)
         n.author = User.find_by_id(users_map[news.poster_id])
         n.save
         print '.'
@@ -422,6 +500,7 @@ task :migrate_from_mantis => :environment do
           v.save
         end unless f.new_record?
       end
+
       puts
 
       puts
