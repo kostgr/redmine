@@ -4,7 +4,7 @@
                             :text => "#{l(:label_revision)} #{changeset.format_identifier}") %><br />
         <span class="author"><%= authoring(changeset.committed_on, changeset.author) %></span></p>
     <div class="wiki">
-        <%= textilizable(changeset, :comments) %>
+        <%= textilizable(changeset.comments[0,255]+((changeset.comments.length>255)?'<...>':''), :object => changeset) %>
     </div>
     </div>
 <% end %>
