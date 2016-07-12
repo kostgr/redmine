@@ -69,7 +69,12 @@ class SearchController < ApplicationController
       @results = []
       @results_by_type = Hash.new {|h,k| h[k] = 0}
 
-      limit = 10
+      # SL 01.07.2016 - http://redmine/redmine/issues/5780
+      # limit = 10
+      limit = Setting.search_results_per_page.to_i
+      limit = 10 if limit == 0
+      # Ende SL 01.07.2016 - http://redmine/redmine/issues/5780
+
       @scope.each do |s|
         r, c = s.singularize.camelcase.constantize.search(@tokens, projects_to_search,
           :all_words => @all_words,

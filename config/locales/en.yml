@@ -411,6 +411,8 @@ en:
   setting_mail_handler_excluded_filenames: Exclude attachments by name
   setting_force_default_language_for_anonymous: Force default language for anonymous users
   setting_force_default_language_for_loggedin: Force default language for logged-in users
+  # SL 01.07.2016 - http://redmine/redmine/issues/5780
+  setting_search_results_per_page: Search results per page
 
   permission_add_project: Create project
   permission_add_subprojects: Create subprojects

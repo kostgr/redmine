@@ -1036,6 +1036,8 @@ de:
   setting_user_format: Benutzer-Anzeigeformat
   setting_welcome_text: Willkommenstext
   setting_wiki_compression: Wiki-Historie komprimieren
+  # SL 01.07.2016 - http://redmine/redmine/issues/5780
+  setting_search_results_per_page: Anzahl Suchergebnisse pro Seite
 
   status_active: aktiv
   status_locked: gesperrt
