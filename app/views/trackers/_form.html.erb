@@ -7,6 +7,14 @@
 <p><%= f.check_box :is_in_roadmap %></p>
 
 <p>
+  <!-- %= f.collection_select(:default_activity_id, TimeEntryActivity.active, :id, :name) % -->
+  <%= f.select :default_activity_id, TimeEntryActivity.active.collect{ |a| [a.name, a.id]}, :include_blank => true %>
+</p>
+<!--p>
+  < %= f.text_field :default_activity % >
+</p -->
+
+<p>
   <label><%= l(:field_core_fields) %></label>
   <% Tracker::CORE_FIELDS.each do |field| %>
   <label class="block">

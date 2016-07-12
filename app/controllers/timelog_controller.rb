@@ -97,7 +97,7 @@ class TimelogController < ApplicationController
   end
 
   def new
-    @time_entry ||= TimeEntry.new(:project => @project, :issue => @issue, :user => User.current, :spent_on => User.current.today)
+    @time_entry ||= TimeEntry.new(:project => @project, :issue => @issue, :activity => get_default_activity(), :user => User.current, :spent_on => User.current.today)
     @time_entry.safe_attributes = params[:time_entry]
   end
 
@@ -294,4 +294,13 @@ private
     attributes[:custom_field_values].reject! {|k,v| v.blank?} if attributes[:custom_field_values]
     attributes
   end
+
+  def get_default_activity
+    if @issue.nil?
+      TimeEntryActivity.find_by_name('Organisation')
+    else
+      @issue.tracker.default_activity
+    end
+  end
+
 end

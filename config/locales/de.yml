@@ -271,6 +271,7 @@ de:
   error_workflow_copy_target: Bitte wählen Sie die Ziel-Tracker und -Rollen.
 
   field_account: Konto
+  field_default_activity: Default Aktivität
   field_active: Aktiv
   field_activity: Aktivität
   field_admin: Administrator

@@ -62,7 +62,11 @@ class TrackersController < ApplicationController
 
   def update
     @tracker = Tracker.find(params[:id])
-    if @tracker.update_attributes(params[:tracker])
+    tracker_params = params[:tracker]
+    @tracker.default_activity = TimeEntryActivity.find_by_id(tracker_params[:default_activity_id])
+    #flash[:notice] = tracker_params[:default_activity_id]
+    tracker_params.delete(:default_activity_id) if tracker_params[:default_activity_id]
+    if @tracker.update_attributes(tracker_params)
       flash[:notice] = l(:notice_successful_update)
       redirect_to trackers_path
       return
